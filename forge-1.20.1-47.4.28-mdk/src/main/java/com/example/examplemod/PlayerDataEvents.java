@@ -1,0 +1,88 @@
+package com.example.examplemod;
+
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraftforge.common.util.LazyOptional;
+import net.minecraftforge.event.AttachCapabilitiesEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+
+@Mod.EventBusSubscriber(modid = ExampleMod.MODID)
+public final class PlayerDataEvents
+{
+    private static final ResourceLocation PLAYER_DATA_ID =
+            ResourceLocation.fromNamespaceAndPath(ExampleMod.MODID, "player_data");
+
+    private PlayerDataEvents()
+    {
+    }
+
+    @SubscribeEvent
+    public static void attachPlayerData(AttachCapabilitiesEvent<Entity> event)
+    {
+        if (event.getObject() instanceof Player)
+        {
+            PlayerDataProvider provider = new PlayerDataProvider();
+            event.addCapability(PLAYER_DATA_ID, provider);
+            event.addListener(provider::invalidate);
+        }
+    }
+
+    @SubscribeEvent
+    public static void copyPlayerData(PlayerEvent.Clone event)
+    {
+        Player original = event.getOriginal();
+        Player replacement = event.getEntity();
+        boolean wasDeath = event.isWasDeath();
+
+        if (wasDeath)
+        {
+            original.reviveCaps();
+        }
+        try
+        {
+            LazyOptional<PlayerData> oldData = original.getCapability(PlayerDataCapability.PLAYER_DATA);
+            LazyOptional<PlayerData> newData = replacement.getCapability(PlayerDataCapability.PLAYER_DATA);
+            oldData.ifPresent(data -> newData.ifPresent(replacementData -> replacementData.copyFrom(data)));
+        }
+        finally
+        {
+            if (wasDeath)
+            {
+                original.invalidateCaps();
+            }
+        }
+    }
+
+    @SubscribeEvent
+    public static void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event)
+    {
+        syncPlayerData(event.getEntity());
+    }
+
+    @SubscribeEvent
+    public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event)
+    {
+        syncPlayerData(event.getEntity());
+    }
+
+    @SubscribeEvent
+    public static void onPlayerChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event)
+    {
+        syncPlayerData(event.getEntity());
+    }
+
+    private static void syncPlayerData(Player player)
+    {
+        if (player instanceof ServerPlayer serverPlayer)
+        {
+            PlayerData data = serverPlayer.getCapability(PlayerDataCapability.PLAYER_DATA)
+                    .orElseThrow(() -> new IllegalStateException("Player data capability is missing"));
+            LevelManager.processLevelUps(serverPlayer, data);
+            ModNetwork.syncPlayerData(serverPlayer);
+        }
+    }
+}
