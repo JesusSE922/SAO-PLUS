@@ -1,4 +1,4 @@
-package com.example.examplemod;
+package com.saoplus.core;
 
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.CapabilityManager;
@@ -7,7 +7,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.common.capabilities.RegisterCapabilitiesEvent;
 import net.minecraftforge.fml.common.Mod;
 
-@Mod.EventBusSubscriber(modid = ExampleMod.MODID, bus = Mod.EventBusSubscriber.Bus.MOD)
+@Mod.EventBusSubscriber(modid = SaoPlus.MODID, bus = Mod.EventBusSubscriber.Bus.MOD)
 public final class PlayerDataCapability
 {
     public static final Capability<PlayerData> PLAYER_DATA =

@@ -1,4 +1,4 @@
-package com.example.examplemod;
+package com.saoplus.core;
 
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;

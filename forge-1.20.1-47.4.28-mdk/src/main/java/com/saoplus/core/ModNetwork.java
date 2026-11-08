@@ -1,4 +1,4 @@
-package com.example.examplemod;
+package com.saoplus.core;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -12,7 +12,7 @@ public final class ModNetwork
 {
     private static final String PROTOCOL_VERSION = "1";
     private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
-            ResourceLocation.fromNamespaceAndPath(ExampleMod.MODID, "main"),
+            ResourceLocation.fromNamespaceAndPath(SaoPlus.MODID, "main"),
             () -> PROTOCOL_VERSION,
             PROTOCOL_VERSION::equals,
             PROTOCOL_VERSION::equals);

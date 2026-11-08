@@ -1,4 +1,4 @@
-package com.example.examplemod;
+package com.saoplus.core;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -10,11 +10,11 @@ import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
-@Mod.EventBusSubscriber(modid = ExampleMod.MODID)
+@Mod.EventBusSubscriber(modid = SaoPlus.MODID)
 public final class PlayerDataEvents
 {
     private static final ResourceLocation PLAYER_DATA_ID =
-            ResourceLocation.fromNamespaceAndPath(ExampleMod.MODID, "player_data");
+            ResourceLocation.fromNamespaceAndPath(SaoPlus.MODID, "player_data");
 
     private PlayerDataEvents()
     {
@@ -79,9 +79,6 @@ public final class PlayerDataEvents
     {
         if (player instanceof ServerPlayer serverPlayer)
         {
-            PlayerData data = serverPlayer.getCapability(PlayerDataCapability.PLAYER_DATA)
-                    .orElseThrow(() -> new IllegalStateException("Player data capability is missing"));
-            LevelManager.processLevelUps(serverPlayer, data);
             ModNetwork.syncPlayerData(serverPlayer);
         }
     }

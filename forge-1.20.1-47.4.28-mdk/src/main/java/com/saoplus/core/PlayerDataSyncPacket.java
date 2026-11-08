@@ -1,4 +1,4 @@
-package com.example.examplemod;
+package com.saoplus.core;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
@@ -38,7 +38,7 @@ public record PlayerDataSyncPacket(CompoundTag data)
         if (player != null)
         {
             player.getCapability(PlayerDataCapability.PLAYER_DATA)
-                    .ifPresent(data -> data.deserializeNBT(packet.data));
+                    .ifPresent(data -> data.setData(packet.data));
         }
     }
 }
