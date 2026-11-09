@@ -1,8 +1,10 @@
 package com.saoplus.core;
 
+import io.netty.buffer.Unpooled;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import org.junit.jupiter.api.Test;
 
@@ -161,5 +163,28 @@ class WeaponMasteryPersistenceTest
         assertEquals(100L, after.getWeaponMastery().get(FAMILY_A).orElseThrow().getExperience());
         assertEquals(200L, after.getWeaponMastery().get(FAMILY_B).orElseThrow().getExperience());
         assertEquals(before, after.serializeNBT());
+    }
+
+    @Test
+    void t10_syncPacketRoundTrip()
+    {
+        PlayerData source = new PlayerData();
+        source.getWeaponMastery().getOrCreate(FAMILY_A).setExperience(17L);
+        source.getWeaponMastery().getOrCreate(FAMILY_B).setExperience(23L);
+        CompoundTag expected = source.serializeNBT();
+        FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
+        try
+        {
+            PlayerDataSyncPacket.encode(new PlayerDataSyncPacket(expected), buffer);
+            PlayerDataSyncPacket decoded = PlayerDataSyncPacket.decode(buffer);
+            PlayerData clientData = new PlayerData();
+            clientData.setData(decoded.data());
+
+            assertEquals(expected, clientData.serializeNBT());
+        }
+        finally
+        {
+            buffer.release();
+        }
     }
 }

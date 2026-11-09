@@ -2,10 +2,14 @@ package com.saoplus.core;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.resources.ResourceLocation;
 
 public final class PlayerData
 {
-    static final String WEAPON_MASTERY_KEY = "weapon_mastery";
+    /** Namespaced root key, so it cannot collide with unrelated data. */
+    static final String WEAPON_MASTERY_KEY = "saoplus:weapon_mastery";
+    /** Key used before the namespaced one; read and migrated, never written. */
+    static final String LEGACY_WEAPON_MASTERY_KEY = "weapon_mastery";
     static final String SPECIALIZATION_KEY = "specialization";
 
     // Untyped data; excludes typed components, which are stored under their own keys.
@@ -57,14 +61,45 @@ public final class PlayerData
     public void deserializeNBT(CompoundTag tag)
     {
         CompoundTag raw = tag.copy();
-        weaponMastery = raw.contains(WEAPON_MASTERY_KEY, Tag.TAG_COMPOUND)
-                ? WeaponMasteryData.load(raw.getCompound(WEAPON_MASTERY_KEY))
-                : new WeaponMasteryData();
+        if (raw.contains(WEAPON_MASTERY_KEY, Tag.TAG_COMPOUND))
+        {
+            weaponMastery = WeaponMasteryData.load(raw.getCompound(WEAPON_MASTERY_KEY));
+        }
+        else if (isLegacyMastery(raw))
+        {
+            weaponMastery = WeaponMasteryData.load(raw.getCompound(LEGACY_WEAPON_MASTERY_KEY));
+            raw.remove(LEGACY_WEAPON_MASTERY_KEY);
+        }
+        else
+        {
+            weaponMastery = new WeaponMasteryData();
+        }
         specialization = raw.contains(SPECIALIZATION_KEY, Tag.TAG_COMPOUND)
                 ? SpecializationData.load(raw.getCompound(SPECIALIZATION_KEY))
                 : new SpecializationData();
         raw.remove(WEAPON_MASTERY_KEY);
         raw.remove(SPECIALIZATION_KEY);
         data = raw;
+    }
+
+    /**
+     * The legacy key is migrated only if it looks like mastery data (every entry a compound under a
+     * valid id). Anything else under that name is foreign data and stays in the untyped tag.
+     */
+    private static boolean isLegacyMastery(CompoundTag raw)
+    {
+        if (!raw.contains(LEGACY_WEAPON_MASTERY_KEY, Tag.TAG_COMPOUND))
+        {
+            return false;
+        }
+        CompoundTag legacy = raw.getCompound(LEGACY_WEAPON_MASTERY_KEY);
+        for (String key : legacy.getAllKeys())
+        {
+            if (ResourceLocation.tryParse(key) == null || !legacy.contains(key, Tag.TAG_COMPOUND))
+            {
+                return false;
+            }
+        }
+        return true;
     }
 }

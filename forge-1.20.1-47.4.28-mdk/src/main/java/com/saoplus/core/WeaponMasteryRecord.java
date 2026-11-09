@@ -26,6 +26,8 @@ public final class WeaponMasteryRecord
     // Challenge payloads stay untyped until the GDD defines their shape.
     private final Map<ResourceLocation, CompoundTag> challenges = new LinkedHashMap<>();
     private final Set<ResourceLocation> unlockedTechniques = new LinkedHashSet<>();
+    // Fields this version does not know (e.g. written by a newer version); kept verbatim on save.
+    private CompoundTag unknown = new CompoundTag();
 
     public long getExperience()
     {
@@ -70,12 +72,13 @@ public final class WeaponMasteryRecord
         copy.experience = experience;
         challenges.forEach((id, tag) -> copy.challenges.put(id, tag.copy()));
         copy.unlockedTechniques.addAll(unlockedTechniques);
+        copy.unknown = unknown.copy();
         return copy;
     }
 
     public CompoundTag save()
     {
-        CompoundTag tag = new CompoundTag();
+        CompoundTag tag = unknown.copy();
         tag.putLong(EXPERIENCE, experience);
 
         CompoundTag challengeTag = new CompoundTag();
@@ -88,7 +91,7 @@ public final class WeaponMasteryRecord
         return tag;
     }
 
-    /** Tolerant load: missing or malformed fields are skipped and unknown fields are ignored. */
+    /** Tolerant load: missing or malformed fields are skipped and unknown fields are preserved. */
     public static WeaponMasteryRecord load(CompoundTag tag)
     {
         WeaponMasteryRecord record = new WeaponMasteryRecord();
@@ -121,6 +124,13 @@ public final class WeaponMasteryRecord
                 }
             }
         }
+        for (String key : tag.getAllKeys())
+        {
+            if (!key.equals(EXPERIENCE) && !key.equals(CHALLENGES) && !key.equals(TECHNIQUES))
+            {
+                record.unknown.put(key, tag.get(key).copy());
+            }
+        }
         return record;
     }
 
@@ -130,12 +140,13 @@ public final class WeaponMasteryRecord
         return other instanceof WeaponMasteryRecord record
                 && experience == record.experience
                 && challenges.equals(record.challenges)
-                && unlockedTechniques.equals(record.unlockedTechniques);
+                && unlockedTechniques.equals(record.unlockedTechniques)
+                && unknown.equals(record.unknown);
     }
 
     @Override
     public int hashCode()
     {
-        return java.util.Objects.hash(experience, challenges, unlockedTechniques);
+        return java.util.Objects.hash(experience, challenges, unlockedTechniques, unknown);
     }
 }
