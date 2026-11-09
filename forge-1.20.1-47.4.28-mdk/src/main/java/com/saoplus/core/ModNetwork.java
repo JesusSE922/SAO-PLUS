@@ -1,5 +1,8 @@
 package com.saoplus.core;
 
+import io.netty.buffer.Unpooled;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkRegistry;
@@ -11,6 +14,8 @@ import java.util.Optional;
 public final class ModNetwork
 {
     private static final String PROTOCOL_VERSION = "1";
+    // FriendlyByteBuf#readNbt rejects tags above 2 MiB; stay below so a snapshot never disconnects a client.
+    static final int MAX_SYNC_BYTES = 1_900_000;
     private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             ResourceLocation.fromNamespaceAndPath(SaoPlus.MODID, "main"),
             () -> PROTOCOL_VERSION,
@@ -30,11 +35,44 @@ public final class ModNetwork
                 Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT));
     }
 
-    public static void syncPlayerData(ServerPlayer player)
+    /**
+     * Sends the full player data snapshot to its owner. Returns false, and logs, when the data
+     * cannot be sent: missing capability (for example a removed entity) or an oversized snapshot.
+     */
+    public static boolean syncPlayerData(ServerPlayer player)
     {
-        PlayerData data = player.getCapability(PlayerDataCapability.PLAYER_DATA)
-                .orElseThrow(() -> new IllegalStateException("Player data capability is missing"));
-        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
-                new PlayerDataSyncPacket(data.serializeNBT()));
+        Optional<PlayerData> data = PlayerDataCapability.get(player);
+        if (data.isEmpty())
+        {
+            SaoPlus.LOGGER.warn("Skipped SAO+ data sync for {}: player data capability is missing",
+                    player.getGameProfile().getName());
+            return false;
+        }
+
+        CompoundTag snapshot = data.get().serializeNBT();
+        int size = encodedSize(snapshot);
+        if (size > MAX_SYNC_BYTES)
+        {
+            SaoPlus.LOGGER.error("Skipped SAO+ data sync for {}: snapshot is {} bytes, above the {} byte limit",
+                    player.getGameProfile().getName(), size, MAX_SYNC_BYTES);
+            return false;
+        }
+
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new PlayerDataSyncPacket(snapshot));
+        return true;
+    }
+
+    static int encodedSize(CompoundTag tag)
+    {
+        FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
+        try
+        {
+            buffer.writeNbt(tag);
+            return buffer.readableBytes();
+        }
+        finally
+        {
+            buffer.release();
+        }
     }
 }

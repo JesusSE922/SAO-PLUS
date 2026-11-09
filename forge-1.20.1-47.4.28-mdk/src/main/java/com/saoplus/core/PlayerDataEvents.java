@@ -10,6 +10,8 @@ import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
+import java.util.Optional;
+
 @Mod.EventBusSubscriber(modid = SaoPlus.MODID)
 public final class PlayerDataEvents
 {
@@ -46,7 +48,17 @@ public final class PlayerDataEvents
         {
             LazyOptional<PlayerData> oldData = original.getCapability(PlayerDataCapability.PLAYER_DATA);
             LazyOptional<PlayerData> newData = replacement.getCapability(PlayerDataCapability.PLAYER_DATA);
-            oldData.ifPresent(data -> newData.ifPresent(replacementData -> replacementData.copyFrom(data)));
+            Optional<PlayerData> originalData = oldData.resolve();
+            Optional<PlayerData> replacementData = newData.resolve();
+            if (originalData.isEmpty() || replacementData.isEmpty())
+            {
+                SaoPlus.LOGGER.error("Could not copy SAO+ player data during clone for {}: "
+                                + "original capability present={}, replacement capability present={}",
+                        original.getGameProfile().getName(), originalData.isPresent(), replacementData.isPresent());
+                return;
+            }
+
+            replacementData.get().copyFrom(originalData.get());
         }
         finally
         {
