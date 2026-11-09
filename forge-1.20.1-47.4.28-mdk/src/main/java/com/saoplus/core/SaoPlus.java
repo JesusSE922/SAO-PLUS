@@ -14,6 +14,10 @@ public final class SaoPlus
     public SaoPlus(FMLJavaModLoadingContext context)
     {
         ModNetwork.register();
+        context.registerConfig(net.minecraftforge.fml.config.ModConfig.Type.SERVER, SaoPlusConfig.SPEC);
+        ModContent.register(context.getModEventBus());
+        com.saoplus.core.economy.EconomyService.init();
+        com.saoplus.core.compat.ftb.FtbCompat.initIfPresent();
         com.saoplus.core.compat.epicfight.EpicFightCompat.initIfPresent();
     }
 }

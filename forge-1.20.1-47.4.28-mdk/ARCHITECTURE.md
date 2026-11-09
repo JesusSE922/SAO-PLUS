@@ -56,3 +56,37 @@ Sync reuses the full `PlayerData` snapshot; no new packet. Not implemented: expe
 | `service.CombatBridge`, `PlayerAttackContextEvent` | Per melee hit: posts level, attributes and family; applies the multiplier listeners set (default 1.0, no Core formula). |
 
 Family resolution order: item id, item tag, external category. Weapon stats per item: `WeaponFamilyManager.statsOf` (opaque).
+
+## First playable version (added 2026-11-09)
+| Package / class | Responsibility |
+|---|---|
+| `combat.GameplayConfig`, `CombatFormulas`, `WeaponProfile` | All provisional numbers, every formula (damage, crit, penetration, agility, resources, mastery ranks, rewards) and the weapon stat model. Pure, unit-tested. |
+| `combat.CombatRules` | Listens to `PlayerAttackContextEvent`: applies the damage formula, crit, penetration, executes armed Sword Skills, awards mastery XP. Also passive evasion, knockback stability and weapon speed/reach item modifiers. |
+| `resource.ResourceData`, `ResourceService` | Persistent MP, COL and highest floor; HP modifier from Vitality/level; MP regeneration. |
+| `economy.EconomyService` | COL wallet API, respec payment gateway, repair cost, purchase helper. |
+| `skill.SwordSkill`, `SkillStateMachine`, `SwordSkillService` | Datapack skill definitions, timing state machine (cooldown, windup, window, combo) and the server service (requirements, MP, interruption). |
+| `service.MasteryProgress` | Mastery rank (derived), XP awarding, skill unlocks by rank. |
+| `world.SaoPlusData`, `EnemyProfile`, `Floor`, `EnemyEvents` | Reload listeners for skills/enemy profiles/floors; enemy scaling; kill rewards; highest floor tracking. |
+| `command.SaoPlusCommands` | Operator-only `/saoplus give` (bridge for FTB Quests command rewards). |
+| `ClientRequestPacket` | Only client-to-server message: skill key, spend one point, respec. |
+| `client.ClientSetup`, `ProgressionScreen` | Keys R/K, HUD, character screen (client only). |
+Default content: `src/main/resources/data/saoplus/...` (9 families, 18 skills, 3 floors, 10 enemy profiles, 3 item tags) and `assets/saoplus/lang` (en_us, es_es). All of it is placeholder content in data, replaceable by datapacks.
+
+Flow of a player hit: vanilla/Epic Fight damage event -> `CombatBridge` (is it a player hit?) -> `PlayerAttackContextEvent` -> `CombatRules` (formulas, skill, mastery) -> final damage. Kill: `EnemyEvents` -> XP (`ProgressionService`) + COL (`EconomyService`) -> sync.
+
+## Second iteration: integration with the modpack (added 2026-11-09)
+**Who does what.** SAO+ = RPG logic. Epic Fight = animations, dodge/guard/parry/stun/stamina. Simply Swords + Basic Weapons = weapons. FTB Quests = quests (SAO+ adds a reward type). FTB Teams = parties. Worldgen/structure/mob mods = the actual Aincrad content, plugged in through datapacks.
+
+| New / changed piece | Responsibility |
+|---|---|
+| `compat.epicfight.EpicFightAdapter` | Also hooks Agility into Epic Fight (stamina cost, attack speed, dodge counter window) and plays skill animations. |
+| `compat.ftb.FtbCompat` -> `FtbTeamsAdapter`, `FtbQuestsAdapter` | Guarded, optional. Party provider; `saoplus:reward` quest reward type. |
+| `service.PartyService`, `service.WeaponResolver` | Party members in range; active family (composites, unlock rules). |
+| `skill.BranchRules`, `Specialization`, `CounterWindow`, `SkillPresentation` | Specialization progression and effects; counter window; skill animation/sound/particles. |
+| `family.FamilyRule` | `unlock` / `composite` rules inside the family data. |
+| `economy.Shop`, `ShopService`, `MerchantBlock`, `ModContent` | Data-driven shops and blacksmiths, merchant/blacksmith/gate blocks. |
+| `world.Zone`, `Floor`, `WorldRules`, `GateBlock`, `EnemyEvents` | Towns (safe), zones, floor access control, bosses, enemy scaling and rewards. |
+| `CatalogPacket`, `OpenShopPacket`, `ClientRequestPacket` | Server -> client catalog and "open shop"; client -> server requests (skill, spend, respec, select branch, buy, sell, repair). |
+| `client.ProgressionScreen`, `ShopScreen`, `ClientSetup`, `SaoStyle`, `ClientCatalog` | SAO-styled HUD and screens. |
+
+Data folders (all under `data/<namespace>/saoplus/`): `weapon_families`, `sword_skills`, `specializations`, `enemy_profiles`, `floors`, `zones`, `shops`. Also `data/<mod>/capabilities/weapons` (Epic Fight movesets) and `data/saoplus/dimension(_type)` (floor skeletons).

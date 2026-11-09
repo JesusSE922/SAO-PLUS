@@ -13,7 +13,7 @@ import java.util.Optional;
 
 public final class ModNetwork
 {
-    private static final String PROTOCOL_VERSION = "1";
+    private static final String PROTOCOL_VERSION = "2";
     // FriendlyByteBuf#readNbt rejects tags above 2 MiB; stay below so a snapshot never disconnects a client.
     static final int MAX_SYNC_BYTES = 1_900_000;
     private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
@@ -33,12 +33,29 @@ public final class ModNetwork
                 PlayerDataSyncPacket::decode,
                 PlayerDataSyncPacket::handle,
                 Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT));
+        CHANNEL.registerMessage(1, ClientRequestPacket.class, ClientRequestPacket::encode, ClientRequestPacket::decode,
+                ClientRequestPacket::handle, Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_SERVER));
+        CHANNEL.registerMessage(2, OpenShopPacket.class, OpenShopPacket::encode, OpenShopPacket::decode,
+                OpenShopPacket::handle, Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT));
+        CHANNEL.registerMessage(3, CatalogPacket.class, CatalogPacket::encode, CatalogPacket::decode,
+                CatalogPacket::handle, Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT));
     }
 
     /**
      * Sends the full player data snapshot to its owner. Returns false, and logs, when the data
      * cannot be sent: missing capability (for example a removed entity) or an oversized snapshot.
      */
+    /** Client to server: a request the server validates (never a grant). */
+    public static void sendToPlayer(ServerPlayer player, Object packet)
+    {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), packet);
+    }
+
+    public static void sendToServer(ClientRequestPacket packet)
+    {
+        CHANNEL.sendToServer(packet);
+    }
+
     public static boolean syncPlayerData(ServerPlayer player)
     {
         Optional<PlayerData> data = PlayerDataCapability.get(player);

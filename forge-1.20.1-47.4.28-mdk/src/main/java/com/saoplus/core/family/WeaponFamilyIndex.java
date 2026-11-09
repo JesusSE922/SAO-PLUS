@@ -18,7 +18,7 @@ import java.util.function.Consumer;
  * Immutable lookup from item ids and item tags to weapon family ids, built from datapack files
  * {@code data/<namespace>/saoplus/weapon_families/<name>.json}:
  * <pre>{"family": "namespace:id", "items": ["mod:item"], "tags": ["mod:tag"],
- *  "categories": ["epicfight:greatsword"], "stats": {"key": 1.0}}</pre>
+ *  "categories": ["epicfight:greatsword"], "stats": {"key": 1.0}, "family_stats": {"key": 1.0}}</pre>
  * {@code categories} are external weapon classes reported by a registered {@link WeaponCategorySource}
  * (the Epic Fight adapter reports {@code epicfight:<category>}). {@code stats} is an opaque numeric map
  * attached to every listed item; SAO+ stores and exposes it but assigns it no meaning yet.
@@ -27,18 +27,24 @@ import java.util.function.Consumer;
 public final class WeaponFamilyIndex
 {
     public static final WeaponFamilyIndex EMPTY =
-            new WeaponFamilyIndex(Map.of(), Map.of(), Map.of(), Map.of());
+            new WeaponFamilyIndex(Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of());
 
     private final Map<ResourceLocation, ResourceLocation> byItem;
     private final Map<ResourceLocation, ResourceLocation> byTag;
     private final Map<ResourceLocation, ResourceLocation> byCategory;
     private final Map<ResourceLocation, Map<String, Double>> statsByItem;
+    private final Map<ResourceLocation, Map<String, Double>> familyStats;
+    private final Map<ResourceLocation, FamilyRule> rules;
 
     private WeaponFamilyIndex(Map<ResourceLocation, ResourceLocation> byItem,
                               Map<ResourceLocation, ResourceLocation> byTag,
                               Map<ResourceLocation, ResourceLocation> byCategory,
-                              Map<ResourceLocation, Map<String, Double>> statsByItem)
+                              Map<ResourceLocation, Map<String, Double>> statsByItem,
+                              Map<ResourceLocation, Map<String, Double>> familyStats,
+                              Map<ResourceLocation, FamilyRule> rules)
     {
+        this.rules = rules;
+        this.familyStats = familyStats;
         this.byItem = byItem;
         this.byTag = byTag;
         this.byCategory = byCategory;
@@ -48,6 +54,22 @@ public final class WeaponFamilyIndex
     public Optional<ResourceLocation> familyOfCategory(ResourceLocation category)
     {
         return Optional.ofNullable(byCategory.get(category));
+    }
+
+    public FamilyRule ruleOf(ResourceLocation family)
+    {
+        return rules.getOrDefault(family, FamilyRule.NONE);
+    }
+
+    public Map<ResourceLocation, FamilyRule> rules()
+    {
+        return rules;
+    }
+
+    /** Default stats of a family ("family_stats" in data); empty map when none. */
+    public Map<String, Double> statsOfFamily(ResourceLocation family)
+    {
+        return familyStats.getOrDefault(family, Map.of());
     }
 
     /** Opaque stats attached to an item by data; empty map when none. */
@@ -82,6 +104,8 @@ public final class WeaponFamilyIndex
         Map<ResourceLocation, ResourceLocation> tags = new LinkedHashMap<>();
         Map<ResourceLocation, ResourceLocation> categories = new LinkedHashMap<>();
         Map<ResourceLocation, Map<String, Double>> stats = new HashMap<>();
+        Map<ResourceLocation, Map<String, Double>> familyStats = new HashMap<>();
+        Map<ResourceLocation, FamilyRule> rules = new HashMap<>();
 
         for (Map.Entry<ResourceLocation, JsonElement> file : new TreeMap<>(files).entrySet())
         {
@@ -101,7 +125,17 @@ public final class WeaponFamilyIndex
             List<ResourceLocation> fileItems = readIds(json, "items", fileId, warn);
             claim(fileItems, family, items, fileId, "item", warn);
             claim(readIds(json, "categories", fileId, warn), family, categories, fileId, "category", warn);
-            Map<String, Double> fileStats = readStats(json, fileId, warn);
+            FamilyRule rule = FamilyRule.parse(json, fileId, warn);
+            if (rule != FamilyRule.NONE && rules.putIfAbsent(family, rule) != null)
+            {
+                warn.accept(fileId + ": rules for " + family + " already defined, keeping the first");
+            }
+            Map<String, Double> defaults = readStats(json, "family_stats", fileId, warn);
+            if (!defaults.isEmpty() && familyStats.putIfAbsent(family, defaults) != null)
+            {
+                warn.accept(fileId + ": family_stats for " + family + " already defined, keeping the first");
+            }
+            Map<String, Double> fileStats = readStats(json, "stats", fileId, warn);
             if (!fileStats.isEmpty())
             {
                 for (ResourceLocation item : fileItems)
@@ -116,7 +150,7 @@ public final class WeaponFamilyIndex
             claim(readIds(json, "tags", fileId, warn), family, tags, fileId, "tag", warn);
         }
         return new WeaponFamilyIndex(Collections.unmodifiableMap(items), Collections.unmodifiableMap(tags),
-                Collections.unmodifiableMap(categories), Collections.unmodifiableMap(stats));
+                Collections.unmodifiableMap(categories), Collections.unmodifiableMap(stats), Collections.unmodifiableMap(familyStats), Collections.unmodifiableMap(rules));
     }
 
     private static void claim(List<ResourceLocation> ids, ResourceLocation family,
@@ -134,16 +168,16 @@ public final class WeaponFamilyIndex
         }
     }
 
-    private static Map<String, Double> readStats(JsonObject json, ResourceLocation fileId, Consumer<String> warn)
+    private static Map<String, Double> readStats(JsonObject json, String key, ResourceLocation fileId, Consumer<String> warn)
     {
-        JsonElement element = json.get("stats");
+        JsonElement element = json.get(key);
         if (element == null)
         {
             return Map.of();
         }
         if (!element.isJsonObject())
         {
-            warn.accept(fileId + ": \"stats\" must be an object, ignored");
+            warn.accept(fileId + ": \"" + key + "\" must be an object, ignored");
             return Map.of();
         }
         Map<String, Double> result = new java.util.TreeMap<>();

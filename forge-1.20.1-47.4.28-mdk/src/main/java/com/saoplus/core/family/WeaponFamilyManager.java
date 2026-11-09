@@ -28,6 +28,7 @@ public final class WeaponFamilyManager extends SimpleJsonResourceReloadListener
     public static final WeaponFamilyManager INSTANCE = new WeaponFamilyManager();
 
     private volatile WeaponFamilyIndex index = WeaponFamilyIndex.EMPTY;
+    private volatile int generation;
 
     private WeaponFamilyManager()
     {
@@ -44,8 +45,25 @@ public final class WeaponFamilyManager extends SimpleJsonResourceReloadListener
     protected void apply(Map<ResourceLocation, JsonElement> files, ResourceManager resourceManager,
                          ProfilerFiller profiler)
     {
+        generation++;
         index = WeaponFamilyIndex.build(files, message -> SaoPlus.LOGGER.warn("Weapon family data: {}", message));
         SaoPlus.LOGGER.info("Loaded {} weapon family assignment(s) from {} file(s)", index.size(), files.size());
+    }
+
+    public FamilyRule ruleOf(ResourceLocation family)
+    {
+        return index.ruleOf(family);
+    }
+
+    public Map<ResourceLocation, FamilyRule> rules()
+    {
+        return index.rules();
+    }
+
+    /** Increases on every datapack reload; caches keyed by item must be dropped when it changes. */
+    public int generation()
+    {
+        return generation;
     }
 
     public Optional<ResourceLocation> familyOf(ItemStack stack)
@@ -79,9 +97,18 @@ public final class WeaponFamilyManager extends SimpleJsonResourceReloadListener
         return Optional.empty();
     }
 
-    /** Opaque stats attached by data to the item (no meaning assigned yet); empty if none. */
+    /** Weapon stats: the item own stats, else its family default stats (see WeaponProfile); empty if none. */
     public Map<String, Double> statsOf(ItemStack stack)
     {
-        return stack.isEmpty() ? Map.of() : index.statsOfItem(BuiltInRegistries.ITEM.getKey(stack.getItem()));
+        if (stack.isEmpty())
+        {
+            return Map.of();
+        }
+        Map<String, Double> own = index.statsOfItem(BuiltInRegistries.ITEM.getKey(stack.getItem()));
+        if (!own.isEmpty())
+        {
+            return own;
+        }
+        return familyOf(stack).map(index::statsOfFamily).orElse(Map.of());
     }
 }

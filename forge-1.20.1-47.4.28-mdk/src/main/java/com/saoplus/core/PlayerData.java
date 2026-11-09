@@ -1,6 +1,7 @@
 package com.saoplus.core;
 
 import com.saoplus.core.progression.ProgressionData;
+import com.saoplus.core.resource.ResourceData;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
@@ -13,12 +14,14 @@ public final class  PlayerData
     static final String LEGACY_WEAPON_MASTERY_KEY = "weapon_mastery";
     static final String SPECIALIZATION_KEY = "specialization";
     static final String PROGRESSION_KEY = "saoplus:progression";
+    static final String RESOURCES_KEY = "saoplus:resources";
 
     // Untyped data; excludes typed components, which are stored under their own keys.
     private CompoundTag data = new CompoundTag();
     private WeaponMasteryData weaponMastery = new WeaponMasteryData();
     private SpecializationData specialization = new SpecializationData();
     private ProgressionData progression = new ProgressionData();
+    private ResourceData resources = new ResourceData();
 
     public WeaponMasteryData getWeaponMastery()
     {
@@ -28,6 +31,11 @@ public final class  PlayerData
     public ProgressionData getProgression()
     {
         return progression;
+    }
+
+    public ResourceData getResources()
+    {
+        return resources;
     }
 
     public SpecializationData getSpecialization()
@@ -41,6 +49,7 @@ public final class  PlayerData
         weaponMastery = other.weaponMastery.copy();
         specialization = other.specialization.copy();
         progression = other.progression.copy();
+        resources = other.resources.copy();
     }
 
     public CompoundTag getData()
@@ -59,6 +68,10 @@ public final class  PlayerData
         if (!weaponMastery.isEmpty())
         {
             tag.put(WEAPON_MASTERY_KEY, weaponMastery.save());
+        }
+        if (!resources.isEmpty())
+        {
+            tag.put(RESOURCES_KEY, resources.save());
         }
         if (!progression.isEmpty())
         {
@@ -93,6 +106,13 @@ public final class  PlayerData
         progression = raw.contains(PROGRESSION_KEY, Tag.TAG_COMPOUND)
                 ? ProgressionData.load(raw.getCompound(PROGRESSION_KEY))
                 : new ProgressionData();
+        resources = raw.contains(RESOURCES_KEY, Tag.TAG_COMPOUND)
+                ? ResourceData.load(raw.getCompound(RESOURCES_KEY))
+                : new ResourceData();
+        if (raw.contains(RESOURCES_KEY, Tag.TAG_COMPOUND))
+        {
+            raw.remove(RESOURCES_KEY);
+        }
         raw.remove(WEAPON_MASTERY_KEY);
         raw.remove(SPECIALIZATION_KEY);
         if (raw.contains(PROGRESSION_KEY, Tag.TAG_COMPOUND))

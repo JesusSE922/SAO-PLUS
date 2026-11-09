@@ -82,6 +82,7 @@ minecraft {
         }
 
         client {
+            args '--quickPlayMultiplayer', 'localhost:25565' // TEMP-QUICKPLAY
             // Comma-separated list of namespaces to load gametests from. Empty = all namespaces.
             property 'forge.enabledGameTestNamespaces', mod_id
         }
@@ -117,6 +118,8 @@ repositories {
 
     // If you have mod jar dependencies in ./libs, you can declare them as a repository like so.
     // See https://docs.gradle.org/current/userguide/declaring_repositories.html#sub:flat_dir_resolver
+    maven { name = "FTB"; url = "https://maven.ftb.dev/releases"; content { includeGroup "dev.ftb.mods" } }
+    maven { name = "Architectury"; url = "https://maven.architectury.dev"; content { includeGroup "dev.architectury" } }
     exclusiveContent {
         forRepository { maven { name = "Modrinth"; url = "https://api.modrinth.com/maven" } }
         forRepositories(fg.repository)
@@ -148,6 +151,11 @@ dependencies {
 
     // Epic Fight 20.14.17 (Modrinth version KEBfkBat): compile-time only, optional at runtime (see TECHNICAL_DECISIONS 25).
     compileOnly fg.deobf("maven.modrinth:epic-fight:KEBfkBat")
+    // FTB Quests / Teams (compile-only, optional at runtime): custom reward type and party experience sharing.
+    compileOnly fg.deobf("dev.ftb.mods:ftb-quests-forge:2001.4.22")
+    compileOnly fg.deobf("dev.ftb.mods:ftb-teams-forge:2001.3.2")
+    compileOnly fg.deobf("dev.ftb.mods:ftb-library-forge:2001.2.13")
+    compileOnly fg.deobf("dev.architectury:architectury-forge:9.2.14")
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.2'
