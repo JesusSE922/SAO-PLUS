@@ -43,3 +43,26 @@ Details and evidence are in `DEPENDENCY_COMPATIBILITY.md` (sections 6–9). Summ
 | Multiple simultaneous clients | NOT VERIFIED |
 
 Method notes: the launcher was generated from the Forge/vanilla version JSONs; two launcher bugs of mine (vanilla jar on the classpath, fake UUID) were fixed and are not mod defects.
+
+## Final integration campaign — 2026-11-09 (SAO+ Core with services, specialization and family catalog)
+
+Method: temporary dev-only fixture (removed afterwards; verified by search and by the jar contents) drove a real dedicated server + one auto-connecting client, in two scenarios: **A** Core + the 14 candidate mods, **B** Core alone. Datapack with fictitious `saoplus_test` families (item `minecraft:iron_sword` → family_a, tag `minecraft:axes` → family_b). Each scenario: first pass (fresh world) and a second pass after server restart.
+
+| Check | A: 14 mods + Core | B: Core alone |
+|---|---|---|
+| World creation, join, leave | PASSED | PASSED |
+| Datapack catalog loaded (`Loaded 2 weapon family assignment(s)`) | PASSED | PASSED |
+| Experience by use through real `player.attack` damage events (item mapping and tag mapping) | PASSED (family_a=3, family_b=1) | PASSED (family_a=5, family_b=1; extra events consistent with vanilla sweep hits, not proven) |
+| Specialization: select, re-select (no-op), switch keeps previous branch progress (`value:42`), cancelled switch returns false | PASSED | PASSED |
+| Technique unlock (true then false), challenge progress, invalid experience (0, -5) rejected | PASSED | PASSED |
+| Death + respawn (clone) keeps all data | PASSED | PASSED |
+| Nether travel keeps data | PASSED | PASSED |
+| Client receives snapshots (8 packets; 6 mutations in one tick coalesce into 1) | PASSED | PASSED |
+| Server restart: data reloaded from disk, datapack reloaded, further hit increments experience (3→4, 5→6) | PASSED | PASSED |
+| Errors in logs | server 1 ERROR, client 1–4 ERROR (see below) | 0 / 0 |
+
+Known log errors in A (not SAO+ code): client `Epic Fight web server … ConnectException` (EpicSkins, offline); one server `NullPointerException` in vanilla `DistanceManager` while handling the player's first `ServerboundMovePlayerPacket` at login, not reproduced in the restart pass or in B, cause not established.
+
+Final artifact checks: `.\gradlew.bat clean build` BUILD SUCCESSFUL, 20/20 unit tests passed (0 failures), `build\libs\saoplus-1.0.0.jar` (42,496 bytes, 31 entries, no fixture classes) starts alone and with the 14 mods on a dedicated server with 0 errors and 0 crashes.
+
+NOT VERIFIED in this round: any client screen or HUD (none was built); Epic Fight animations and attacks through Epic Fight (only vanilla `player.attack`); behavior of Epic Fight's own damage path with `WeaponUsageEvents`; projectile weapons; Pufferfish/RAS/Epic Fight API usage from Core code (no adapter exists); multiple simultaneous clients; Simply Tooltips visuals; sweep-hit cause.
