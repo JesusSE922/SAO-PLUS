@@ -117,6 +117,11 @@ repositories {
 
     // If you have mod jar dependencies in ./libs, you can declare them as a repository like so.
     // See https://docs.gradle.org/current/userguide/declaring_repositories.html#sub:flat_dir_resolver
+    exclusiveContent {
+        forRepository { maven { name = "Modrinth"; url = "https://api.modrinth.com/maven" } }
+        forRepositories(fg.repository)
+        filter { includeGroup "maven.modrinth" }
+    }
     // flatDir {
     //     dir 'libs'
     // }
@@ -140,6 +145,9 @@ dependencies {
     // This maps to ./libs/coolmod-${mc_version}-${coolmod_version}.jar
     // The group id is ignored when searching -- in this case, it is "blank"
     // implementation fg.deobf("blank:coolmod-${mc_version}:${coolmod_version}")
+
+    // Epic Fight 20.14.17 (Modrinth version KEBfkBat): compile-time only, optional at runtime (see TECHNICAL_DECISIONS 25).
+    compileOnly fg.deobf("maven.modrinth:epic-fight:KEBfkBat")
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.2'

@@ -14,5 +14,6 @@ public final class SaoPlus
     public SaoPlus(FMLJavaModLoadingContext context)
     {
         ModNetwork.register();
+        com.saoplus.core.compat.epicfight.EpicFightCompat.initIfPresent();
     }
 }

@@ -6,6 +6,7 @@ import com.google.gson.JsonObject;
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,22 +17,43 @@ import java.util.function.Consumer;
 /**
  * Immutable lookup from item ids and item tags to weapon family ids, built from datapack files
  * {@code data/<namespace>/saoplus/weapon_families/<name>.json}:
- * <pre>{"family": "namespace:id", "items": ["mod:item"], "tags": ["mod:tag"]}</pre>
+ * <pre>{"family": "namespace:id", "items": ["mod:item"], "tags": ["mod:tag"],
+ *  "categories": ["epicfight:greatsword"], "stats": {"key": 1.0}}</pre>
+ * {@code categories} are external weapon classes reported by a registered {@link WeaponCategorySource}
+ * (the Epic Fight adapter reports {@code epicfight:<category>}). {@code stats} is an opaque numeric map
+ * attached to every listed item; SAO+ stores and exposes it but assigns it no meaning yet.
  * SAO+ ships no families: the catalog is defined by data, so no family or weapon id is hard-coded.
  */
 public final class WeaponFamilyIndex
 {
     public static final WeaponFamilyIndex EMPTY =
-            new WeaponFamilyIndex(Map.of(), Map.of());
+            new WeaponFamilyIndex(Map.of(), Map.of(), Map.of(), Map.of());
 
     private final Map<ResourceLocation, ResourceLocation> byItem;
     private final Map<ResourceLocation, ResourceLocation> byTag;
+    private final Map<ResourceLocation, ResourceLocation> byCategory;
+    private final Map<ResourceLocation, Map<String, Double>> statsByItem;
 
     private WeaponFamilyIndex(Map<ResourceLocation, ResourceLocation> byItem,
-                              Map<ResourceLocation, ResourceLocation> byTag)
+                              Map<ResourceLocation, ResourceLocation> byTag,
+                              Map<ResourceLocation, ResourceLocation> byCategory,
+                              Map<ResourceLocation, Map<String, Double>> statsByItem)
     {
         this.byItem = byItem;
         this.byTag = byTag;
+        this.byCategory = byCategory;
+        this.statsByItem = statsByItem;
+    }
+
+    public Optional<ResourceLocation> familyOfCategory(ResourceLocation category)
+    {
+        return Optional.ofNullable(byCategory.get(category));
+    }
+
+    /** Opaque stats attached to an item by data; empty map when none. */
+    public Map<String, Double> statsOfItem(ResourceLocation itemId)
+    {
+        return statsByItem.getOrDefault(itemId, Map.of());
     }
 
     public Optional<ResourceLocation> familyOfItem(ResourceLocation itemId)
@@ -47,7 +69,7 @@ public final class WeaponFamilyIndex
 
     public int size()
     {
-        return byItem.size() + byTag.size();
+        return byItem.size() + byTag.size() + byCategory.size();
     }
 
     /**
@@ -58,6 +80,8 @@ public final class WeaponFamilyIndex
     {
         Map<ResourceLocation, ResourceLocation> items = new LinkedHashMap<>();
         Map<ResourceLocation, ResourceLocation> tags = new LinkedHashMap<>();
+        Map<ResourceLocation, ResourceLocation> categories = new LinkedHashMap<>();
+        Map<ResourceLocation, Map<String, Double>> stats = new HashMap<>();
 
         for (Map.Entry<ResourceLocation, JsonElement> file : new TreeMap<>(files).entrySet())
         {
@@ -74,10 +98,25 @@ public final class WeaponFamilyIndex
                 warn.accept(fileId + ": missing or invalid \"family\", file skipped");
                 continue;
             }
-            claim(readIds(json, "items", fileId, warn), family, items, fileId, "item", warn);
+            List<ResourceLocation> fileItems = readIds(json, "items", fileId, warn);
+            claim(fileItems, family, items, fileId, "item", warn);
+            claim(readIds(json, "categories", fileId, warn), family, categories, fileId, "category", warn);
+            Map<String, Double> fileStats = readStats(json, fileId, warn);
+            if (!fileStats.isEmpty())
+            {
+                for (ResourceLocation item : fileItems)
+                {
+                    // Only the file that owns the item (the family that won it) contributes stats.
+                    if (family.equals(items.get(item)))
+                    {
+                        stats.computeIfAbsent(item, id -> new java.util.TreeMap<>()).putAll(fileStats);
+                    }
+                }
+            }
             claim(readIds(json, "tags", fileId, warn), family, tags, fileId, "tag", warn);
         }
-        return new WeaponFamilyIndex(Collections.unmodifiableMap(items), Collections.unmodifiableMap(tags));
+        return new WeaponFamilyIndex(Collections.unmodifiableMap(items), Collections.unmodifiableMap(tags),
+                Collections.unmodifiableMap(categories), Collections.unmodifiableMap(stats));
     }
 
     private static void claim(List<ResourceLocation> ids, ResourceLocation family,
@@ -93,6 +132,35 @@ public final class WeaponFamilyIndex
                         + existing + "; keeping the first assignment");
             }
         }
+    }
+
+    private static Map<String, Double> readStats(JsonObject json, ResourceLocation fileId, Consumer<String> warn)
+    {
+        JsonElement element = json.get("stats");
+        if (element == null)
+        {
+            return Map.of();
+        }
+        if (!element.isJsonObject())
+        {
+            warn.accept(fileId + ": \"stats\" must be an object, ignored");
+            return Map.of();
+        }
+        Map<String, Double> result = new java.util.TreeMap<>();
+        for (Map.Entry<String, JsonElement> entry : element.getAsJsonObject().entrySet())
+        {
+            JsonElement value = entry.getValue();
+            if (value.isJsonPrimitive() && value.getAsJsonPrimitive().isNumber()
+                    && Double.isFinite(value.getAsDouble()))
+            {
+                result.put(entry.getKey(), value.getAsDouble());
+            }
+            else
+            {
+                warn.accept(fileId + ": stat \"" + entry.getKey() + "\" is not a finite number, ignored");
+            }
+        }
+        return result;
     }
 
     private static ResourceLocation readId(JsonObject json, String key)

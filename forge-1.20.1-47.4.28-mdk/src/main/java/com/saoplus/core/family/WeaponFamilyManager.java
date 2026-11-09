@@ -68,6 +68,20 @@ public final class WeaponFamilyManager extends SimpleJsonResourceReloadListener
                 return Optional.of(tag.getValue());
             }
         }
+        for (WeaponCategorySource source : WeaponCategorySource.sources())
+        {
+            Optional<ResourceLocation> family = source.categoryOf(stack).flatMap(current::familyOfCategory);
+            if (family.isPresent())
+            {
+                return family;
+            }
+        }
         return Optional.empty();
+    }
+
+    /** Opaque stats attached by data to the item (no meaning assigned yet); empty if none. */
+    public Map<String, Double> statsOf(ItemStack stack)
+    {
+        return stack.isEmpty() ? Map.of() : index.statsOfItem(BuiltInRegistries.ITEM.getKey(stack.getItem()));
     }
 }

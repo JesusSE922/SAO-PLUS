@@ -177,3 +177,6 @@ Setup: official Forge installer into an isolated `.minecraft`; launch arguments 
 Test artifacts (jars, isolated server/client, logs) are in the session scratchpad (`…\scratchpad\p2\`), outside the repository.
 
 Test artifacts live in the session scratchpad (`…\scratchpad\p2\`: `downloads\`, `server-base\`, `results\`), outside the repository. The user's `eula.txt` acceptance was copied into the isolated server directory.
+
+## Update 2026-11-09: Epic Fight used by the Core
+Epic Fight 20.14.17 is now a compile-only dependency of the Core and an optional runtime dependency. API used: EpicFightCapabilities.getItemCapability, CapabilityItem.getWeaponCategory, WeaponCategories, EpicFightDamageSource. Compiles and loads against 20.14.17; other versions are untested.

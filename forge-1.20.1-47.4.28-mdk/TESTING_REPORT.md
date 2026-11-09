@@ -52,7 +52,7 @@ Method: temporary dev-only fixture (removed afterwards; verified by search and b
 |---|---|---|
 | World creation, join, leave | PASSED | PASSED |
 | Datapack catalog loaded (`Loaded 2 weapon family assignment(s)`) | PASSED | PASSED |
-| Experience by use through real `player.attack` damage events (item mapping and tag mapping) | PASSED (family_a=3, family_b=1) | PASSED (family_a=5, family_b=1; extra events consistent with vanilla sweep hits, not proven) |
+| (OBSOLETE: feature removed after this test) | Experience by use through real `player.attack` damage events (item mapping and tag mapping) | PASSED (family_a=3, family_b=1) | PASSED (family_a=5, family_b=1; extra events consistent with vanilla sweep hits, not proven) |
 | Specialization: select, re-select (no-op), switch keeps previous branch progress (`value:42`), cancelled switch returns false | PASSED | PASSED |
 | Technique unlock (true then false), challenge progress, invalid experience (0, -5) rejected | PASSED | PASSED |
 | Death + respawn (clone) keeps all data | PASSED | PASSED |
@@ -66,3 +66,9 @@ Known log errors in A (not SAO+ code): client `Epic Fight web server … Connect
 Final artifact checks: `.\gradlew.bat clean build` BUILD SUCCESSFUL, 20/20 unit tests passed (0 failures), `build\libs\saoplus-1.0.0.jar` (42,496 bytes, 31 entries, no fixture classes) starts alone and with the 14 mods on a dedicated server with 0 errors and 0 crashes.
 
 NOT VERIFIED in this round: any client screen or HUD (none was built); Epic Fight animations and attacks through Epic Fight (only vanilla `player.attack`); behavior of Epic Fight's own damage path with `WeaponUsageEvents`; projectile weapons; Pufferfish/RAS/Epic Fight API usage from Core code (no adapter exists); multiple simultaneous clients; Simply Tooltips visuals; sweep-hit cause.
+
+## Level / experience / attributes - automated tests (2026-11-09)
+`.\gradlew.bat clean build`: BUILD SUCCESSFUL. 63 tests, 63 passed, 0 failed, 0 skipped (ProgressionDataTest 28, ProgressionPersistenceTest 7, plus 28 earlier). Covered: curve, multi-level, surplus, max level, negative/extreme values, points and milestones, spending, softcap, respec, NBT round trip, clone, sync codec, old data, unknown fields, Weapon Mastery unchanged. NOT VERIFIED: anything in a real client or dedicated server (login, death, dimension, restart, multi-client).
+
+## Epic Fight integration - automated and startup tests (2026-11-09)
+`.\gradlew.bat clean build`: BUILD SUCCESSFUL, 70 tests, 0 failed, 0 skipped (new: WeaponFamilyCategoryTest 7). Isolated dedicated server (not production): Core alone starts (0 errors); Core + Epic Fight 20.14.17 starts and logs `Epic Fight detected` (0 errors). The first run without Epic Fight FAILED (ClassNotFoundException in `SaoPlus.<init>`); fixed by splitting guard and adapter (decision 26). NOT VERIFIED: category resolution with real items, Epic Fight damage reaching `CombatBridge`, animations, client.

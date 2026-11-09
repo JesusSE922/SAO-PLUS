@@ -103,3 +103,12 @@ No copies documentos de referencia innecesariamente ni borres archivos ajenos.
 - **Campos desconocidos** dentro de cada registro: se preservan al guardar y copiar.
 - **Pruebas:** `WeaponMasteryMigrationTest` (3: migración, colisión, campos desconocidos). `.\gradlew.bat build`: correcto, 0 fallos. Sin pruebas en juego, cliente ni servidor dedicado tras este cambio.
 - Docs (`IMPLEMENTATION_STATUS.md`, `ARCHITECTURE.md`, `TECHNICAL_DECISIONS.md` decisión 12) aún describen la experiencia por golpe y deben actualizarse. Sin commit ni push.
+
+## 8. Cierre (2026-11-09)
+
+- **Alcance real:** modelo de datos, persistencia NBT (`saoplus:weapon_mastery`), migración de la clave antigua, preservación de campos desconocidos, clonación (`copyFrom`) y sincronización servidor→cliente (snapshot completo de `PlayerData`, que incluye maestría). `unlocked_techniques` y `WeaponMasteryService` se conservan por decisión del usuario, sin llamadores automáticos. Sin progresión, rangos ni experiencia automática.
+- **Migración:** idempotente; si existen ambas claves gana la nueva y la antigua se conserva intacta en el NBT genérico (no se pierde ni se sobrescribe); datos ajenos bajo `weapon_mastery` no se tocan.
+- **Pruebas:** 28 en 5 suites, 0 fallos, 0 omitidas (Migración 7, Persistencia 10, Especialización 6, FamilyIndex 4, Service 1). `.\gradlew.bat clean build`: BUILD SUCCESSFUL. Solo pruebas automatizadas.
+- **Referencias obsoletas:** actualizadas en `ARCHITECTURE.md`, `IMPLEMENTATION_STATUS.md`, `TECHNICAL_DECISIONS.md` (decisión 12 marcada obsoleta, decisión 4 actualizada); las filas históricas de `TESTING_REPORT.md` quedan marcadas OBSOLETE.
+- **Limitaciones:** entradas con id inválido o no-compound dentro de la maestría se descartan al cargar; el snapshot es completo; si coexisten ambas claves la antigua permanece indefinidamente.
+- **Pendiente en juego:** reconexión, muerte/clon, cambio de dimensión y reinicio en cliente y servidor dedicado con el formato nuevo (incluida la migración con un mundo de prueba aislado).
